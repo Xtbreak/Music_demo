@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成拼音
-    const titlePinyin = pinyin(title, { tone: "none", type: "array" }).join("");
+    const titlePinyin = pinyin(title, { toneType: "none", type: "array" }).join("");
 
     // 去除歌词中的 HTML 标签，用于搜索
     const lyricsPlain = lyrics ? lyrics.replace(/<[^>]*>/g, "") : null;

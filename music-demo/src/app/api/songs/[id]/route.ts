@@ -57,7 +57,7 @@ export async function PUT(
 
     // 生成拼音
     const titlePinyin = title
-      ? pinyin(title, { tone: "none", type: "array" }).join("")
+      ? pinyin(title, { toneType: "none", type: "array" }).join("")
       : undefined;
 
     // 去除歌词中的 HTML 标签

@@ -17,17 +17,12 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         username,
         password,
         redirect: true,
         callbackUrl: "/",
       });
-
-      if (result?.error) {
-        setError("用户名或密码错误");
-        setLoading(false);
-      }
     } catch (err) {
       console.error("Login error:", err);
       setError("登录失败");

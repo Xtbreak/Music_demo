@@ -101,25 +101,6 @@ export default async function PrintSongPage({ params }: PageProps) {
           赞美诗歌管理系统 · {new Date().toLocaleDateString()}
         </div>
       </div>
-
-      {/* 打印样式 */}
-      <style jsx global>{`
-        @media print {
-          body {
-            font-size: 12pt;
-            line-height: 1.6;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-content {
-            max-width: 100% !important;
-          }
-          .sheet-section {
-            page-break-inside: avoid;
-          }
-        }
-      `}</style>
     </div>
   );
 }

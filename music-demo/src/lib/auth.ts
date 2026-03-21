@@ -83,25 +83,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   callbacks: {
     async jwt({ token, user }) {
-      console.log("=== JWT Callback ===");
-      console.log("User:", user);
-      console.log("Token before:", token);
       if (user) {
         token.id = user.id;
-        token.username = user.username;
+        token.username = (user as Record<string, unknown>).username as string;
       }
-      console.log("Token after:", token);
       return token;
     },
     async session({ session, token }) {
-      console.log("=== Session Callback ===");
-      console.log("Token:", token);
-      console.log("Session before:", session);
       if (token) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
       }
-      console.log("Session after:", session);
       return session;
     },
   },
