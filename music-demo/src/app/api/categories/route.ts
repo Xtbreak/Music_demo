@@ -6,13 +6,15 @@ import { auth } from "@/lib/auth";
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       include: {
         _count: {
           select: { songs: true },
         },
       },
     });
+
+    // 按 localeCompare 排序（中文按拼音、英文按字母）
+    categories.sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
 
     return NextResponse.json(categories);
   } catch (error) {
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, sortOrder } = body;
+    const { name, description } = body;
 
     if (!name) {
       return NextResponse.json({ error: "分类名称不能为空" }, { status: 400 });
@@ -40,7 +42,6 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description,
-        sortOrder: sortOrder || 0,
       },
     });
 

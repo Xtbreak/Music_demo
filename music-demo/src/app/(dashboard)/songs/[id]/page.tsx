@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 interface Sheet {
   id: string;
   name: string | null;
   content: string;
+  fileUrl: string | null;
   keySignature: string | null;
   capo: number | null;
   tempo: number | null;
   timeSignature: string | null;
   notes: string | null;
   sortOrder: number;
-  instrument: {
-    id: string;
-    name: string;
-  };
 }
 
 interface Song {
@@ -27,7 +25,6 @@ interface Song {
   author: string | null;
   description: string | null;
   tags: string | null;
-  viewCount: number;
   createdAt: string;
   category: { id: string; name: string } | null;
   sheets: Sheet[];
@@ -36,15 +33,18 @@ interface Song {
 export default function SongDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const [song, setSong] = useState<Song | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSheetForm, setShowSheetForm] = useState(false);
   const [editingSheet, setEditingSheet] = useState<Sheet | null>(null);
-  const [instruments, setInstruments] = useState<{ id: string; name: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sheetForm, setSheetForm] = useState({
-    instrumentId: "",
     name: "",
+    fileUrl: "",
     content: "",
     keySignature: "",
     capo: 0,
@@ -71,26 +71,15 @@ export default function SongDetailPage() {
     }
   };
 
-  const fetchInstruments = async () => {
-    try {
-      const res = await fetch("/api/instruments");
-      const data = await res.json();
-      setInstruments(data);
-    } catch (error) {
-      console.error("获取乐器列表失败:", error);
-    }
-  };
-
   useEffect(() => {
     fetchSong();
-    fetchInstruments();
   }, [params.id]);
 
   const openAddSheetForm = () => {
     setEditingSheet(null);
     setSheetForm({
-      instrumentId: "",
       name: "",
+      fileUrl: "",
       content: "",
       keySignature: "",
       capo: 0,
@@ -105,9 +94,9 @@ export default function SongDetailPage() {
   const openEditSheetForm = (sheet: Sheet) => {
     setEditingSheet(sheet);
     setSheetForm({
-      instrumentId: sheet.instrument.id,
       name: sheet.name || "",
-      content: sheet.content,
+      fileUrl: sheet.fileUrl || "",
+      content: sheet.content || "",
       keySignature: sheet.keySignature || "",
       capo: sheet.capo || 0,
       tempo: sheet.tempo || 0,
@@ -118,8 +107,59 @@ export default function SongDetailPage() {
     setShowSheetForm(true);
   };
 
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.url;
+      } else {
+        const data = await res.json();
+        alert(data.error || "上传失败");
+        return null;
+      }
+    } catch (error) {
+      console.error("上传图片失败:", error);
+      alert("上传图片失败");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await uploadImage(file);
+    if (url) {
+      setSheetForm({ ...sheetForm, fileUrl: url });
+    }
+    e.target.value = "";
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const url = await uploadImage(file);
+    if (url) {
+      setSheetForm({ ...sheetForm, fileUrl: url });
+    }
+  };
+
   const handleSheetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!sheetForm.fileUrl && !sheetForm.content) {
+      alert("请上传乐谱图片或输入简谱内容");
+      return;
+    }
 
     try {
       const url = editingSheet
@@ -135,6 +175,7 @@ export default function SongDetailPage() {
           songId: params.id,
           capo: sheetForm.capo || null,
           tempo: sheetForm.tempo || null,
+          fileUrl: sheetForm.fileUrl || null,
         }),
       });
 
@@ -184,55 +225,35 @@ export default function SongDetailPage() {
       </div>
 
       {/* 歌曲信息 */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{song.title}</h1>
-            {song.author && (
-              <p className="text-gray-600 mt-1">作者: {song.author}</p>
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="text-center mb-3 sm:mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{song.title}</h1>
+          {song.author && (
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">作者: {song.author}</p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-gray-600 mb-4">
+          <div className="flex flex-wrap gap-4">
+            {song.category && (
+              <span className="bg-gray-100 px-2 py-1 rounded">
+                分类: {song.category.name}
+              </span>
+            )}
+            {song.tags && (
+              <span className="bg-gray-100 px-2 py-1 rounded">
+                标签: {song.tags}
+              </span>
             )}
           </div>
-          <div className="flex space-x-2">
+          {session && (
             <Link
               href={`/songs/${song.id}/edit`}
-              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
             >
               编辑
             </Link>
-            <Link
-              href={`/songs/${song.id}/print`}
-              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-            >
-              打印
-            </Link>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-          {song.category && (
-            <span className="bg-gray-100 px-2 py-1 rounded">
-              分类: {song.category.name}
-            </span>
           )}
-          {song.tags && (
-            <span className="bg-gray-100 px-2 py-1 rounded">
-              标签: {song.tags}
-            </span>
-          )}
-          <span className="bg-gray-100 px-2 py-1 rounded">
-            浏览: {song.viewCount}
-          </span>
-        </div>
-
-        {song.description && (
-          <p className="text-gray-600 mb-4">{song.description}</p>
-        )}
-
-        <div className="border-t pt-4">
-          <h3 className="font-medium text-gray-900 mb-2">歌词</h3>
-          <div className="whitespace-pre-wrap text-gray-700 bg-gray-50 p-4 rounded">
-            {song.lyrics || "暂无歌词"}
-          </div>
         </div>
       </div>
 
@@ -240,12 +261,14 @@ export default function SongDetailPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">乐谱 ({song.sheets.length})</h2>
-          <button
-            onClick={openAddSheetForm}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            添加乐谱
-          </button>
+          {session && (
+            <button
+              onClick={openAddSheetForm}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              添加乐谱
+            </button>
+          )}
         </div>
 
         {song.sheets.length === 0 ? (
@@ -260,10 +283,9 @@ export default function SongDetailPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-medium text-gray-900">
-                      {sheet.name || sheet.instrument.name}
+                      {sheet.name || "曲谱"}
                     </h3>
                     <div className="flex flex-wrap gap-2 mt-1 text-sm text-gray-600">
-                      <span>乐器: {sheet.instrument.name}</span>
                       {sheet.keySignature && (
                         <span>调性: {sheet.keySignature}</span>
                       )}
@@ -274,27 +296,51 @@ export default function SongDetailPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => openEditSheetForm(sheet)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSheet(sheet.id)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      删除
-                    </button>
-                  </div>
+                  {session && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => openEditSheetForm(sheet)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSheet(sheet.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {sheet.notes && (
                   <p className="text-sm text-gray-500 mt-2">{sheet.notes}</p>
                 )}
-                <div className="mt-3 p-3 bg-gray-50 rounded text-sm font-mono whitespace-pre-wrap">
-                  {sheet.content}
-                </div>
+                {sheet.fileUrl && (
+                  <div className="mt-3 relative group inline-block w-full">
+                    <img
+                      src={sheet.fileUrl}
+                      alt={sheet.name || "曲谱"}
+                      className="max-w-full rounded border border-gray-200"
+                    />
+                    <a
+                      href={sheet.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                      title="查看原图"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                    </a>
+                  </div>
+                )}
+                {sheet.content && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded text-sm font-mono whitespace-pre-wrap">
+                    {sheet.content}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -309,44 +355,22 @@ export default function SongDetailPage() {
               {editingSheet ? "编辑乐谱" : "添加乐谱"}
             </h2>
             <form onSubmit={handleSheetSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    乐器 *
-                  </label>
-                  <select
-                    required
-                    value={sheetForm.instrumentId}
-                    onChange={(e) =>
-                      setSheetForm({ ...sheetForm, instrumentId: e.target.value })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">选择乐器</option>
-                    {instruments.map((inst) => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    乐谱名称
-                  </label>
-                  <input
-                    type="text"
-                    value={sheetForm.name}
-                    onChange={(e) =>
-                      setSheetForm({ ...sheetForm, name: e.target.value })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="可选，默认使用乐器名"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  乐谱名称
+                </label>
+                <input
+                  type="text"
+                  value={sheetForm.name}
+                  onChange={(e) =>
+                    setSheetForm({ ...sheetForm, name: e.target.value })
+                  }
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  placeholder={'可选，默认显示"曲谱"'}
+                />
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     调性
@@ -412,22 +436,79 @@ export default function SongDetailPage() {
                 </div>
               </div>
 
+              {/* 图片上传区域 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  乐谱内容 *
+                  乐谱图片（可选，也可填写下方简谱）
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  className="mt-1 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                >
+                  {sheetForm.fileUrl ? (
+                    <div className="relative">
+                      <img
+                        src={sheetForm.fileUrl}
+                        alt="乐谱预览"
+                        className="max-h-64 mx-auto rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSheetForm({ ...sheetForm, fileUrl: "" });
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white w-6 h-6 rounded-full text-sm hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-gray-400 mb-2">
+                        {uploading ? (
+                          <span>上传中...</span>
+                        ) : (
+                          <>
+                            <svg className="mx-auto h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m0 0h8m-8 0v-8m0 8h8" />
+                            </svg>
+                            <span>点击或拖拽上传乐谱图片</span>
+                            <span className="text-xs text-gray-400">支持 JPG、PNG、WebP、GIF，最大 5MB</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 简谱 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  简谱
                 </label>
                 <textarea
-                  required
                   value={sheetForm.content}
                   onChange={(e) =>
                     setSheetForm({ ...sheetForm, content: e.target.value })
                   }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md font-mono"
-                  rows={10}
-                  placeholder="输入和弦、简谱等乐谱内容"
+                  rows={6}
+                  placeholder="输入简谱内容，如：1 2 3 4 | 5 6 7 1&#x0A;可用 | 分隔小节，用 _ 表示休止符"
                 />
               </div>
 
+              {/* 备注 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   备注
@@ -439,6 +520,7 @@ export default function SongDetailPage() {
                   }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   rows={2}
+                  placeholder="可选，记录演奏要点、转调说明等"
                 />
               </div>
 
@@ -469,9 +551,10 @@ export default function SongDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={uploading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                  保存
+                  {uploading ? "上传中..." : "保存"}
                 </button>
               </div>
             </form>

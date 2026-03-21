@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -9,14 +9,19 @@ interface Category {
   name: string;
 }
 
-interface Song {
-  id: string;
-  title: string;
-  lyrics: string;
-  author: string | null;
-  description: string | null;
-  tags: string | null;
-  categoryId: string | null;
+interface SheetForm {
+  id?: string;
+  name: string;
+  fileUrl: string;
+  content: string;
+  keySignature: string;
+  capo: number;
+  tempo: number;
+  timeSignature: string;
+  notes: string;
+  sortOrder: number;
+  _deleted?: boolean;
+  _isNew?: boolean;
 }
 
 export default function EditSongPage() {
@@ -25,6 +30,9 @@ export default function EditSongPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
   const [formData, setFormData] = useState({
     title: "",
     lyrics: "",
@@ -33,6 +41,8 @@ export default function EditSongPage() {
     tags: "",
     categoryId: "",
   });
+
+  const [sheets, setSheets] = useState<SheetForm[]>([]);
 
   useEffect(() => {
     fetchCategories();
@@ -62,11 +72,110 @@ export default function EditSongPage() {
           tags: data.tags || "",
           categoryId: data.categoryId || "",
         });
+        if (data.sheets) {
+          setSheets(
+            data.sheets.map((s: Record<string, unknown>) => ({
+              id: s.id as string,
+              name: (s.name as string) || "",
+              fileUrl: (s.fileUrl as string) || "",
+              content: (s.content as string) || "",
+              keySignature: (s.keySignature as string) || "",
+              capo: (s.capo as number) || 0,
+              tempo: (s.tempo as number) || 0,
+              timeSignature: (s.timeSignature as string) || "",
+              notes: (s.notes as string) || "",
+              sortOrder: (s.sortOrder as number) || 0,
+            }))
+          );
+        }
       }
     } catch (error) {
       console.error("获取歌曲失败:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addSheet = () => {
+    setSheets([
+      ...sheets,
+      {
+        name: "",
+        fileUrl: "",
+        content: "",
+        keySignature: "",
+        capo: 0,
+        tempo: 0,
+        timeSignature: "",
+        notes: "",
+        sortOrder: sheets.length,
+        _isNew: true,
+      },
+    ]);
+  };
+
+  const removeSheet = (index: number) => {
+    const sheet = sheets[index];
+    if (sheet.id) {
+      // 已有的标记删除
+      setSheets(sheets.map((s, i) => (i === index ? { ...s, _deleted: true } : s)));
+    } else {
+      // 新增的直接移除
+      setSheets(sheets.filter((_, i) => i !== index));
+    }
+  };
+
+  const restoreSheet = (index: number) => {
+    setSheets(sheets.map((s, i) => (i === index ? { ...s, _deleted: false } : s)));
+  };
+
+  const updateSheet = (index: number, data: Partial<SheetForm>) => {
+    setSheets(sheets.map((s, i) => (i === index ? { ...s, ...data } : s)));
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.url;
+      } else {
+        const data = await res.json();
+        alert(data.error || "上传失败");
+        return null;
+      }
+    } catch (error) {
+      console.error("上传图片失败:", error);
+      alert("上传图片失败");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await uploadImage(file);
+    if (url) {
+      updateSheet(index, { fileUrl: url });
+    }
+    e.target.value = "";
+  };
+
+  const handleDrop = async (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const url = await uploadImage(file);
+    if (url) {
+      updateSheet(index, { fileUrl: url });
     }
   };
 
@@ -81,7 +190,8 @@ export default function EditSongPage() {
     setSaving(true);
 
     try {
-      const res = await fetch(`/api/songs/${params.id}`, {
+      // 更新歌曲
+      const songRes = await fetch(`/api/songs/${params.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,12 +200,53 @@ export default function EditSongPage() {
         }),
       });
 
-      if (res.ok) {
-        router.push(`/songs/${params.id}`);
-      } else {
-        const data = await res.json();
+      if (!songRes.ok) {
+        const data = await songRes.json();
         alert(data.error || "保存失败");
+        return;
       }
+
+      // 处理曲谱
+      for (const sheet of sheets) {
+        if (sheet._deleted && sheet.id) {
+          await fetch(`/api/sheets/${sheet.id}`, { method: "DELETE" });
+        } else if (sheet._isNew && (sheet.fileUrl || sheet.content)) {
+          await fetch("/api/sheets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              songId: params.id,
+              name: sheet.name || null,
+              fileUrl: sheet.fileUrl || null,
+              content: sheet.content || null,
+              keySignature: sheet.keySignature || null,
+              capo: sheet.capo || null,
+              tempo: sheet.tempo || null,
+              timeSignature: sheet.timeSignature || null,
+              notes: sheet.notes || null,
+              sortOrder: sheet.sortOrder,
+            }),
+          });
+        } else if (sheet.id && !sheet._deleted) {
+          await fetch(`/api/sheets/${sheet.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: sheet.name || null,
+              fileUrl: sheet.fileUrl || null,
+              content: sheet.content || null,
+              keySignature: sheet.keySignature || null,
+              capo: sheet.capo || null,
+              tempo: sheet.tempo || null,
+              timeSignature: sheet.timeSignature || null,
+              notes: sheet.notes || null,
+              sortOrder: sheet.sortOrder,
+            }),
+          });
+        }
+      }
+
+      router.push(`/songs/${params.id}`);
     } catch (error) {
       console.error("保存歌曲失败:", error);
       alert("保存失败");
@@ -190,20 +341,6 @@ export default function EditSongPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              歌词
-            </label>
-            <textarea
-              value={formData.lyrics}
-              onChange={(e) =>
-                setFormData({ ...formData, lyrics: e.target.value })
-              }
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              rows={10}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
               歌曲描述
             </label>
             <textarea
@@ -216,6 +353,230 @@ export default function EditSongPage() {
             />
           </div>
 
+          {/* 曲谱区域 */}
+          <div className="border-t pt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">曲谱</h2>
+              <button
+                type="button"
+                onClick={addSheet}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                + 添加曲谱
+              </button>
+            </div>
+
+            {sheets.length === 0 && (
+              <p className="text-gray-400 text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                暂无曲谱，点击"添加曲谱"按钮上传
+              </p>
+            )}
+
+            <div className="space-y-6">
+              {sheets.map((sheet, index) => (
+                <div
+                  key={sheet.id || index}
+                  className={`border rounded-lg p-4 ${sheet._deleted ? "bg-red-50 opacity-60" : "bg-gray-50"}`}
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-medium text-gray-800">
+                      曲谱 {index + 1}
+                      {sheet._deleted && (
+                        <span className="text-red-500 text-sm ml-2">（待删除）</span>
+                      )}
+                    </h3>
+                    <div className="flex space-x-3">
+                      {sheet._deleted ? (
+                        <button
+                          type="button"
+                          onClick={() => restoreSheet(index)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          恢复
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => removeSheet(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          删除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {!sheet._deleted && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600">
+                            曲谱名称
+                          </label>
+                          <input
+                            type="text"
+                            value={sheet.name}
+                            onChange={(e) =>
+                              updateSheet(index, { name: e.target.value })
+                            }
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder={'可选，默认显示"曲谱"'}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600">
+                            调性
+                          </label>
+                          <input
+                            type="text"
+                            value={sheet.keySignature}
+                            onChange={(e) =>
+                              updateSheet(index, { keySignature: e.target.value })
+                            }
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="C, D, G..."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600">
+                            变调夹
+                          </label>
+                          <input
+                            type="number"
+                            value={sheet.capo}
+                            onChange={(e) =>
+                              updateSheet(index, {
+                                capo: parseInt(e.target.value) || 0,
+                              })
+                            }
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600">
+                            速度(BPM)
+                          </label>
+                          <input
+                            type="number"
+                            value={sheet.tempo}
+                            onChange={(e) =>
+                              updateSheet(index, {
+                                tempo: parseInt(e.target.value) || 0,
+                              })
+                            }
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600">
+                            拍号
+                          </label>
+                          <input
+                            type="text"
+                            value={sheet.timeSignature}
+                            onChange={(e) =>
+                              updateSheet(index, {
+                                timeSignature: e.target.value,
+                              })
+                            }
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            placeholder="4/4"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 图片上传 */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          曲谱图片
+                        </label>
+                        <input
+                          ref={(el) => { fileInputRefs.current[index] = el; }}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileChange(index, e)}
+                          className="hidden"
+                        />
+                        <div
+                          onClick={() => fileInputRefs.current[index]?.click()}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => handleDrop(index, e)}
+                          className="mt-1 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                        >
+                          {sheet.fileUrl ? (
+                            <div className="relative">
+                              <img
+                                src={sheet.fileUrl}
+                                alt="曲谱预览"
+                                className="max-h-48 mx-auto rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateSheet(index, { fileUrl: "" });
+                                }}
+                                className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs hover:bg-red-600"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-gray-400">
+                              {uploading ? (
+                                <span>上传中...</span>
+                              ) : (
+                                <>
+                                  <span className="text-sm">点击或拖拽上传曲谱图片</span>
+                                  <span className="block text-xs mt-1">JPG、PNG、WebP，最大 5MB</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 简谱 */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          简谱
+                        </label>
+                        <textarea
+                          value={sheet.content}
+                          onChange={(e) =>
+                            updateSheet(index, { content: e.target.value })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                          rows={4}
+                          placeholder="如：1 2 3 4 | 5 6 7 1"
+                        />
+                      </div>
+
+                      {/* 备注 */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          备注
+                        </label>
+                        <textarea
+                          value={sheet.notes}
+                          onChange={(e) =>
+                            updateSheet(index, { notes: e.target.value })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          rows={2}
+                          placeholder="演奏要点、转调说明等"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-3">
             <Link
               href={`/songs/${params.id}`}
@@ -225,7 +586,7 @@ export default function EditSongPage() {
             </Link>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || uploading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? "保存中..." : "保存"}

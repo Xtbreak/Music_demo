@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       songId,
-      instrumentId,
       name,
       content,
+      fileUrl,
       keySignature,
       capo,
       tempo,
@@ -24,26 +24,9 @@ export async function POST(request: NextRequest) {
       sortOrder,
     } = body;
 
-    if (!songId || !instrumentId || !content) {
+    if (!songId || (!content && !fileUrl)) {
       return NextResponse.json(
-        { error: "缺少必要字段" },
-        { status: 400 }
-      );
-    }
-
-    // 检查是否已存在相同乐器
-    const existing = await prisma.sheet.findUnique({
-      where: {
-        songId_instrumentId: {
-          songId,
-          instrumentId,
-        },
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "该歌曲已有此乐器的乐谱，请编辑现有乐谱" },
+        { error: "请上传乐谱图片或输入乐谱内容" },
         { status: 400 }
       );
     }
@@ -51,9 +34,9 @@ export async function POST(request: NextRequest) {
     const sheet = await prisma.sheet.create({
       data: {
         songId,
-        instrumentId,
         name,
-        content,
+        content: content || null,
+        fileUrl,
         keySignature,
         capo,
         tempo,

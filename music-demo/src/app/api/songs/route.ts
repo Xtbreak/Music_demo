@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
             select: { sheets: true },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { title: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

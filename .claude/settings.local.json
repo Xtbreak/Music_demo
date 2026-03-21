@@ -32,7 +32,26 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/auth/session)",
       "Bash(curl -s http://localhost:3000/api/auth/session)",
       "Bash(cd:*)",
-      "Bash(curl -s http://localhost:3002/api/auth/session)"
+      "Bash(curl -s http://localhost:3002/api/auth/session)",
+      "Bash(curl:*)",
+      "Bash(grep -r client.only D:/Code/Music_demo/music-demo/node_modules/next-auth/ --include=*.js --include=*.mjs --include=*.cjs)",
+      "Bash(npx next:*)",
+      "Bash(python3 -c \"import sys,json; d=json.loads\\(sys.stdin.read\\(\\).split\\(''''<script id=__NEXT_DATA__ type=application/json>''''\\)[1].split\\(''''</script>''''\\)[0]\\); print\\(json.dumps\\(d.get\\(''''err'''',{}\\), indent=2\\)\\)\")",
+      "Bash(grep -oP \"\"err\"\":{.*?})",
+      "Bash(taskkill:*)",
+      "Bash(ls:*)",
+      "Bash(find /d/Code/Music_demo/music-demo -name *.env* -o -name .env*)",
+      "Bash(sqlite3 prisma/dev.db \".tables\")",
+      "Bash(node -e \"const { PrismaClient } = require\\(''@prisma/client''\\); const { PrismaLibSql } = require\\(''@prisma/adapter-libsql''\\); const a = new PrismaLibSql\\({ url: ''file:./prisma/dev.db'' }\\); const p = new PrismaClient\\({ adapter: a }\\); p.admin.findMany\\(\\).then\\(r => console.log\\(''OK:'', r.length\\)\\).catch\\(e => console.error\\(''ERR:'', e.message\\)\\)\")",
+      "Bash(rm -f prisma/dev.db prisma/dev.db-journal)",
+      "Bash(rm -rf prisma/migrations)",
+      "Bash(node -e \"const { PrismaClient } = require\\(''@prisma/client''\\); const { PrismaLibSql } = require\\(''@prisma/adapter-libsql''\\); const a = new PrismaLibSql\\({ url: ''file:./dev.db'' }\\); const p = new PrismaClient\\({ adapter: a }\\); p.admin.findMany\\(\\).then\\(r => console.log\\(''OK:'', r.length\\)\\).catch\\(e => console.error\\(''ERR:'', e.message\\)\\)\")",
+      "Bash(node -e \"require\\(''./src/lib/prisma.ts''\\)\")",
+      "Bash(node --experimental-strip-types -e \":*)",
+      "Bash(npm ls:*)",
+      "WebSearch",
+      "Bash(npm info:*)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"好的\" npx prisma db push --force-reset --accept-data-loss)"
     ]
   }
 }

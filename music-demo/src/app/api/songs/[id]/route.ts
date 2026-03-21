@@ -27,12 +27,6 @@ export async function GET(
       return NextResponse.json({ error: "歌曲不存在" }, { status: 404 });
     }
 
-    // 增加浏览次数
-    await prisma.song.update({
-      where: { id },
-      data: { viewCount: { increment: 1 } },
-    });
-
     return NextResponse.json(song);
   } catch (error) {
     console.error("获取歌曲详情失败:", error);

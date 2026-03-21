@@ -6,7 +6,6 @@ interface Category {
   id: string;
   name: string;
   description: string | null;
-  sortOrder: number;
   _count?: { songs: number };
 }
 
@@ -18,7 +17,6 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    sortOrder: 0,
   });
 
   const fetchCategories = async () => {
@@ -55,7 +53,7 @@ export default function CategoriesPage() {
       if (res.ok) {
         setShowForm(false);
         setEditingCategory(null);
-        setFormData({ name: "", description: "", sortOrder: 0 });
+        setFormData({ name: "", description: "" });
         fetchCategories();
       } else {
         const data = await res.json();
@@ -72,7 +70,6 @@ export default function CategoriesPage() {
     setFormData({
       name: category.name,
       description: category.description || "",
-      sortOrder: category.sortOrder,
     });
     setShowForm(true);
   };
@@ -108,7 +105,7 @@ export default function CategoriesPage() {
         <button
           onClick={() => {
             setEditingCategory(null);
-            setFormData({ name: "", description: "", sortOrder: 0 });
+            setFormData({ name: "", description: "" });
             setShowForm(true);
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -152,19 +149,6 @@ export default function CategoriesPage() {
                   rows={3}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  排序
-                </label>
-                <input
-                  type="number"
-                  value={formData.sortOrder}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })
-                  }
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
               <div className="flex justify-end space-x-2">
                 <button
                   type="button"
@@ -199,9 +183,6 @@ export default function CategoriesPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 歌曲数
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                排序
-              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 操作
               </th>
@@ -210,7 +191,7 @@ export default function CategoriesPage() {
           <tbody className="bg-white divide-y divide-gray-200">
             {categories.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10 text-center text-gray-500">
+                <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
                   暂无分类，请添加
                 </td>
               </tr>
@@ -225,9 +206,6 @@ export default function CategoriesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {category._count?.songs || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.sortOrder}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button

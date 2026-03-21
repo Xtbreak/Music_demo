@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -9,10 +9,26 @@ interface Category {
   name: string;
 }
 
+interface SheetForm {
+  id?: string;
+  name: string;
+  fileUrl: string;
+  content: string;
+  keySignature: string;
+  capo: number;
+  tempo: number;
+  timeSignature: string;
+  notes: string;
+  sortOrder: number;
+}
+
 export default function NewSongPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
   const [formData, setFormData] = useState({
     title: "",
     lyrics: "",
@@ -21,6 +37,8 @@ export default function NewSongPage() {
     tags: "",
     categoryId: "",
   });
+
+  const [sheets, setSheets] = useState<SheetForm[]>([]);
 
   useEffect(() => {
     fetchCategories();
@@ -36,6 +54,77 @@ export default function NewSongPage() {
     }
   };
 
+  const addSheet = () => {
+    setSheets([
+      ...sheets,
+      {
+        name: "",
+        fileUrl: "",
+        content: "",
+        keySignature: "",
+        capo: 0,
+        tempo: 0,
+        timeSignature: "",
+        notes: "",
+        sortOrder: sheets.length,
+      },
+    ]);
+  };
+
+  const removeSheet = (index: number) => {
+    setSheets(sheets.filter((_, i) => i !== index));
+  };
+
+  const updateSheet = (index: number, data: Partial<SheetForm>) => {
+    setSheets(sheets.map((s, i) => (i === index ? { ...s, ...data } : s)));
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.url;
+      } else {
+        const data = await res.json();
+        alert(data.error || "上传失败");
+        return null;
+      }
+    } catch (error) {
+      console.error("上传图片失败:", error);
+      alert("上传图片失败");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await uploadImage(file);
+    if (url) {
+      updateSheet(index, { fileUrl: url });
+    }
+    e.target.value = "";
+  };
+
+  const handleDrop = async (index: number, e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const url = await uploadImage(file);
+    if (url) {
+      updateSheet(index, { fileUrl: url });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -47,7 +136,8 @@ export default function NewSongPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/songs", {
+      // 创建歌曲
+      const songRes = await fetch("/api/songs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -56,13 +146,36 @@ export default function NewSongPage() {
         }),
       });
 
-      if (res.ok) {
-        const song = await res.json();
-        router.push(`/songs/${song.id}`);
-      } else {
-        const data = await res.json();
+      if (!songRes.ok) {
+        const data = await songRes.json();
         alert(data.error || "创建失败");
+        return;
       }
+
+      const song = await songRes.json();
+
+      // 创建曲谱
+      const validSheets = sheets.filter((s) => s.fileUrl || s.content);
+      for (const sheet of validSheets) {
+        await fetch("/api/sheets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            songId: song.id,
+            name: sheet.name || null,
+            fileUrl: sheet.fileUrl || null,
+            content: sheet.content || null,
+            keySignature: sheet.keySignature || null,
+            capo: sheet.capo || null,
+            tempo: sheet.tempo || null,
+            timeSignature: sheet.timeSignature || null,
+            notes: sheet.notes || null,
+            sortOrder: sheet.sortOrder,
+          }),
+        });
+      }
+
+      router.push(`/songs/${song.id}`);
     } catch (error) {
       console.error("创建歌曲失败:", error);
       alert("创建失败");
@@ -155,21 +268,6 @@ export default function NewSongPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              歌词
-            </label>
-            <textarea
-              value={formData.lyrics}
-              onChange={(e) =>
-                setFormData({ ...formData, lyrics: e.target.value })
-              }
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              rows={10}
-              placeholder="输入歌词内容"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
               歌曲描述
             </label>
             <textarea
@@ -183,6 +281,210 @@ export default function NewSongPage() {
             />
           </div>
 
+          {/* 曲谱区域 */}
+          <div className="border-t pt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">曲谱</h2>
+              <button
+                type="button"
+                onClick={addSheet}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                + 添加曲谱
+              </button>
+            </div>
+
+            {sheets.length === 0 && (
+              <p className="text-gray-400 text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
+                暂无曲谱，点击"添加曲谱"按钮上传
+              </p>
+            )}
+
+            <div className="space-y-6">
+              {sheets.map((sheet, index) => (
+                <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-medium text-gray-800">
+                      曲谱 {index + 1}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => removeSheet(index)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      删除
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          曲谱名称
+                        </label>
+                        <input
+                          type="text"
+                          value={sheet.name}
+                          onChange={(e) =>
+                            updateSheet(index, { name: e.target.value })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder={'可选，默认显示"曲谱"'}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          调性
+                        </label>
+                        <input
+                          type="text"
+                          value={sheet.keySignature}
+                          onChange={(e) =>
+                            updateSheet(index, { keySignature: e.target.value })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="C, D, G..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          变调夹
+                        </label>
+                        <input
+                          type="number"
+                          value={sheet.capo}
+                          onChange={(e) =>
+                            updateSheet(index, {
+                              capo: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          速度(BPM)
+                        </label>
+                        <input
+                          type="number"
+                          value={sheet.tempo}
+                          onChange={(e) =>
+                            updateSheet(index, {
+                              tempo: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600">
+                          拍号
+                        </label>
+                        <input
+                          type="text"
+                          value={sheet.timeSignature}
+                          onChange={(e) =>
+                            updateSheet(index, {
+                              timeSignature: e.target.value,
+                            })
+                          }
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          placeholder="4/4"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 图片上传 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">
+                        曲谱图片
+                      </label>
+                      <input
+                        ref={(el) => { fileInputRefs.current[index] = el; }}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileChange(index, e)}
+                        className="hidden"
+                      />
+                      <div
+                        onClick={() => fileInputRefs.current[index]?.click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => handleDrop(index, e)}
+                        className="mt-1 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                      >
+                        {sheet.fileUrl ? (
+                          <div className="relative">
+                            <img
+                              src={sheet.fileUrl}
+                              alt="曲谱预览"
+                              className="max-h-48 mx-auto rounded"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateSheet(index, { fileUrl: "" });
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-gray-400">
+                            {uploading ? (
+                              <span>上传中...</span>
+                            ) : (
+                              <>
+                                <span className="text-sm">点击或拖拽上传曲谱图片</span>
+                                <span className="block text-xs mt-1">JPG、PNG、WebP，最大 5MB</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 简谱 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">
+                        简谱
+                      </label>
+                      <textarea
+                        value={sheet.content}
+                        onChange={(e) =>
+                          updateSheet(index, { content: e.target.value })
+                        }
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
+                        rows={4}
+                        placeholder="如：1 2 3 4 | 5 6 7 1"
+                      />
+                    </div>
+
+                    {/* 备注 */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">
+                        备注
+                      </label>
+                      <textarea
+                        value={sheet.notes}
+                        onChange={(e) =>
+                          updateSheet(index, { notes: e.target.value })
+                        }
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        rows={2}
+                        placeholder="演奏要点、转调说明等"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end space-x-3">
             <Link
               href="/songs"
@@ -192,7 +494,7 @@ export default function NewSongPage() {
             </Link>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploading}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "保存中..." : "保存"}

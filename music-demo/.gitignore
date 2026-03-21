@@ -51,6 +51,9 @@ check-admin.*
 test-api.ts
 test-login.ts
 
+# uploads (user uploaded files)
+/public/uploads/
+
 # claude local settings
 .claude/settings.local.json
 
