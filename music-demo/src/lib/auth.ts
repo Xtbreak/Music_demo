@@ -9,6 +9,7 @@ declare module "next-auth" {
     user: {
       id: string;
       username?: string;
+      role?: string;
     } & DefaultSession["user"];
   }
 }
@@ -18,7 +19,7 @@ async function getAdmin(username: string) {
   const { prisma } = await import("./prisma");
   return prisma.admin.findUnique({
     where: { username },
-    select: { id: true, username: true, password: true, name: true },
+    select: { id: true, username: true, password: true, name: true, role: true },
   });
 }
 
@@ -66,6 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: admin.name,
             email: null,
             username: admin.username,
+            role: admin.role,
           };
         } catch (error) {
           console.error("❌ Authorization error:", error);
@@ -86,6 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.username = (user as Record<string, unknown>).username as string;
+        token.role = (user as Record<string, unknown>).role as string;
       }
       return token;
     },
@@ -93,6 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
+        session.user.role = token.role as string;
       }
       return session;
     },

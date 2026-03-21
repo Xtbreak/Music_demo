@@ -51,7 +51,9 @@
       "Bash(npm ls:*)",
       "WebSearch",
       "Bash(npm info:*)",
-      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"好的\" npx prisma db push --force-reset --accept-data-loss)"
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"好的\" npx prisma db push --force-reset --accept-data-loss)",
+      "Bash(ls D:/Code/Music_demo/music-demo/src/app/\\\\\\(dashboard\\\\\\)/admins/)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -13,11 +13,6 @@ interface SheetForm {
   id?: string;
   name: string;
   fileUrl: string;
-  content: string;
-  keySignature: string;
-  capo: number;
-  tempo: number;
-  timeSignature: string;
   notes: string;
   sortOrder: number;
 }
@@ -32,9 +27,6 @@ export default function NewSongPage() {
   const [formData, setFormData] = useState({
     title: "",
     lyrics: "",
-    author: "",
-    description: "",
-    tags: "",
     categoryId: "",
   });
 
@@ -60,11 +52,6 @@ export default function NewSongPage() {
       {
         name: "",
         fileUrl: "",
-        content: "",
-        keySignature: "",
-        capo: 0,
-        tempo: 0,
-        timeSignature: "",
         notes: "",
         sortOrder: sheets.length,
       },
@@ -155,7 +142,7 @@ export default function NewSongPage() {
       const song = await songRes.json();
 
       // 创建曲谱
-      const validSheets = sheets.filter((s) => s.fileUrl || s.content);
+      const validSheets = sheets.filter((s) => s.fileUrl);
       for (const sheet of validSheets) {
         await fetch("/api/sheets", {
           method: "POST",
@@ -164,11 +151,6 @@ export default function NewSongPage() {
             songId: song.id,
             name: sheet.name || null,
             fileUrl: sheet.fileUrl || null,
-            content: sheet.content || null,
-            keySignature: sheet.keySignature || null,
-            capo: sheet.capo || null,
-            tempo: sheet.tempo || null,
-            timeSignature: sheet.timeSignature || null,
             notes: sheet.notes || null,
             sortOrder: sheet.sortOrder,
           }),
@@ -212,73 +194,26 @@ export default function NewSongPage() {
                 placeholder="输入歌曲标题"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                作者/作曲
-              </label>
-              <input
-                type="text"
-                value={formData.author}
-                onChange={(e) =>
-                  setFormData({ ...formData, author: e.target.value })
-                }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="作者/作曲者"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                分类
-              </label>
-              <select
-                value={formData.categoryId}
-                onChange={(e) =>
-                  setFormData({ ...formData, categoryId: e.target.value })
-                }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">选择分类</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                标签
-              </label>
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) =>
-                  setFormData({ ...formData, tags: e.target.value })
-                }
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="多个标签用逗号分隔"
-              />
-            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              歌曲描述
+              分类
             </label>
-            <textarea
-              value={formData.description}
+            <select
+              value={formData.categoryId}
               onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
+                setFormData({ ...formData, categoryId: e.target.value })
               }
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              rows={3}
-              placeholder="歌曲简介、背景等"
-            />
+            >
+              <option value="">选择分类</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 曲谱区域 */}
@@ -317,84 +252,19 @@ export default function NewSongPage() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600">
-                          曲谱名称
-                        </label>
-                        <input
-                          type="text"
-                          value={sheet.name}
-                          onChange={(e) =>
-                            updateSheet(index, { name: e.target.value })
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          placeholder={'可选，默认显示"曲谱"'}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600">
-                          调性
-                        </label>
-                        <input
-                          type="text"
-                          value={sheet.keySignature}
-                          onChange={(e) =>
-                            updateSheet(index, { keySignature: e.target.value })
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          placeholder="C, D, G..."
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600">
-                          变调夹
-                        </label>
-                        <input
-                          type="number"
-                          value={sheet.capo}
-                          onChange={(e) =>
-                            updateSheet(index, {
-                              capo: parseInt(e.target.value) || 0,
-                            })
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600">
-                          速度(BPM)
-                        </label>
-                        <input
-                          type="number"
-                          value={sheet.tempo}
-                          onChange={(e) =>
-                            updateSheet(index, {
-                              tempo: parseInt(e.target.value) || 0,
-                            })
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600">
-                          拍号
-                        </label>
-                        <input
-                          type="text"
-                          value={sheet.timeSignature}
-                          onChange={(e) =>
-                            updateSheet(index, {
-                              timeSignature: e.target.value,
-                            })
-                          }
-                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          placeholder="4/4"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">
+                        曲谱名称
+                      </label>
+                      <input
+                        type="text"
+                        value={sheet.name}
+                        onChange={(e) =>
+                          updateSheet(index, { name: e.target.value })
+                        }
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        placeholder={'可选，默认显示"曲谱"'}
+                      />
                     </div>
 
                     {/* 图片上传 */}
@@ -446,22 +316,6 @@ export default function NewSongPage() {
                           </div>
                         )}
                       </div>
-                    </div>
-
-                    {/* 简谱 */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600">
-                        简谱
-                      </label>
-                      <textarea
-                        value={sheet.content}
-                        onChange={(e) =>
-                          updateSheet(index, { content: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono"
-                        rows={4}
-                        placeholder="如：1 2 3 4 | 5 6 7 1"
-                      />
                     </div>
 
                     {/* 备注 */}

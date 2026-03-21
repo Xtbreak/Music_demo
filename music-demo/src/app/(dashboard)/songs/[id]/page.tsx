@@ -8,12 +8,7 @@ import { useSession } from "next-auth/react";
 interface Sheet {
   id: string;
   name: string | null;
-  content: string;
   fileUrl: string | null;
-  keySignature: string | null;
-  capo: number | null;
-  tempo: number | null;
-  timeSignature: string | null;
   notes: string | null;
   sortOrder: number;
 }
@@ -22,9 +17,6 @@ interface Song {
   id: string;
   title: string;
   lyrics: string;
-  author: string | null;
-  description: string | null;
-  tags: string | null;
   createdAt: string;
   category: { id: string; name: string } | null;
   sheets: Sheet[];
@@ -45,11 +37,6 @@ export default function SongDetailPage() {
   const [sheetForm, setSheetForm] = useState({
     name: "",
     fileUrl: "",
-    content: "",
-    keySignature: "",
-    capo: 0,
-    tempo: 0,
-    timeSignature: "",
     notes: "",
     sortOrder: 0,
   });
@@ -80,11 +67,6 @@ export default function SongDetailPage() {
     setSheetForm({
       name: "",
       fileUrl: "",
-      content: "",
-      keySignature: "",
-      capo: 0,
-      tempo: 0,
-      timeSignature: "",
       notes: "",
       sortOrder: 0,
     });
@@ -96,11 +78,6 @@ export default function SongDetailPage() {
     setSheetForm({
       name: sheet.name || "",
       fileUrl: sheet.fileUrl || "",
-      content: sheet.content || "",
-      keySignature: sheet.keySignature || "",
-      capo: sheet.capo || 0,
-      tempo: sheet.tempo || 0,
-      timeSignature: sheet.timeSignature || "",
       notes: sheet.notes || "",
       sortOrder: sheet.sortOrder,
     });
@@ -156,8 +133,8 @@ export default function SongDetailPage() {
   const handleSheetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!sheetForm.fileUrl && !sheetForm.content) {
-      alert("请上传乐谱图片或输入简谱内容");
+    if (!sheetForm.fileUrl) {
+      alert("请上传乐谱图片");
       return;
     }
 
@@ -173,8 +150,6 @@ export default function SongDetailPage() {
         body: JSON.stringify({
           ...sheetForm,
           songId: params.id,
-          capo: sheetForm.capo || null,
-          tempo: sheetForm.tempo || null,
           fileUrl: sheetForm.fileUrl || null,
         }),
       });
@@ -219,18 +194,18 @@ export default function SongDetailPage() {
   return (
     <div>
       <div className="mb-6">
-        <Link href="/songs" className="text-blue-600 hover:text-blue-800">
+        <button
+          onClick={() => router.back()}
+          className="text-blue-600 hover:text-blue-800"
+        >
           ← 返回歌曲列表
-        </Link>
+        </button>
       </div>
 
       {/* 歌曲信息 */}
       <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
         <div className="text-center mb-3 sm:mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{song.title}</h1>
-          {song.author && (
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">作者: {song.author}</p>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-gray-600 mb-4">
@@ -238,11 +213,6 @@ export default function SongDetailPage() {
             {song.category && (
               <span className="bg-gray-100 px-2 py-1 rounded">
                 分类: {song.category.name}
-              </span>
-            )}
-            {song.tags && (
-              <span className="bg-gray-100 px-2 py-1 rounded">
-                标签: {song.tags}
               </span>
             )}
           </div>
@@ -285,19 +255,12 @@ export default function SongDetailPage() {
                     <h3 className="font-medium text-gray-900">
                       {sheet.name || "曲谱"}
                     </h3>
-                    <div className="flex flex-wrap gap-2 mt-1 text-sm text-gray-600">
-                      {sheet.keySignature && (
-                        <span>调性: {sheet.keySignature}</span>
-                      )}
-                      {sheet.capo && <span>变调夹: {sheet.capo}</span>}
-                      {sheet.tempo && <span>速度: {sheet.tempo} BPM</span>}
-                      {sheet.timeSignature && (
-                        <span>拍号: {sheet.timeSignature}</span>
-                      )}
-                    </div>
+                    {sheet.notes && (
+                      <p className="text-sm text-gray-500 mt-2">{sheet.notes}</p>
+                    )}
                   </div>
                   {session && (
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 flex-shrink-0">
                       <button
                         onClick={() => openEditSheetForm(sheet)}
                         className="text-blue-600 hover:text-blue-800 text-sm"
@@ -313,9 +276,6 @@ export default function SongDetailPage() {
                     </div>
                   )}
                 </div>
-                {sheet.notes && (
-                  <p className="text-sm text-gray-500 mt-2">{sheet.notes}</p>
-                )}
                 {sheet.fileUrl && (
                   <div className="mt-3 relative group inline-block w-full">
                     <img
@@ -334,11 +294,6 @@ export default function SongDetailPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                       </svg>
                     </a>
-                  </div>
-                )}
-                {sheet.content && (
-                  <div className="mt-3 p-3 bg-gray-50 rounded text-sm font-mono whitespace-pre-wrap">
-                    {sheet.content}
                   </div>
                 )}
               </div>
@@ -370,76 +325,10 @@ export default function SongDetailPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    调性
-                  </label>
-                  <input
-                    type="text"
-                    value={sheetForm.keySignature}
-                    onChange={(e) =>
-                      setSheetForm({ ...sheetForm, keySignature: e.target.value })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="C, D, G..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    变调夹
-                  </label>
-                  <input
-                    type="number"
-                    value={sheetForm.capo}
-                    onChange={(e) =>
-                      setSheetForm({
-                        ...sheetForm,
-                        capo: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    速度(BPM)
-                  </label>
-                  <input
-                    type="number"
-                    value={sheetForm.tempo}
-                    onChange={(e) =>
-                      setSheetForm({
-                        ...sheetForm,
-                        tempo: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    拍号
-                  </label>
-                  <input
-                    type="text"
-                    value={sheetForm.timeSignature}
-                    onChange={(e) =>
-                      setSheetForm({
-                        ...sheetForm,
-                        timeSignature: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="4/4"
-                  />
-                </div>
-              </div>
-
               {/* 图片上传区域 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  乐谱图片（可选，也可填写下方简谱）
+                  乐谱图片 *
                 </label>
                 <input
                   ref={fileInputRef}
@@ -492,22 +381,6 @@ export default function SongDetailPage() {
                 </div>
               </div>
 
-              {/* 简谱 */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  简谱
-                </label>
-                <textarea
-                  value={sheetForm.content}
-                  onChange={(e) =>
-                    setSheetForm({ ...sheetForm, content: e.target.value })
-                  }
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md font-mono"
-                  rows={6}
-                  placeholder="输入简谱内容，如：1 2 3 4 | 5 6 7 1&#x0A;可用 | 分隔小节，用 _ 表示休止符"
-                />
-              </div>
-
               {/* 备注 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -521,23 +394,6 @@ export default function SongDetailPage() {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                   rows={2}
                   placeholder="可选，记录演奏要点、转调说明等"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  排序
-                </label>
-                <input
-                  type="number"
-                  value={sheetForm.sortOrder}
-                  onChange={(e) =>
-                    setSheetForm({
-                      ...sheetForm,
-                      sortOrder: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="mt-1 block w-32 px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
 

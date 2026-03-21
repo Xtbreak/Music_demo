@@ -16,6 +16,7 @@ model Admin {
   password  String   // bcrypt 加密存储
   name      String?
   email     String?  @unique
+  role      String   @default("admin") // admin | super
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -4,13 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 
-const adminNavItems = [
-  { href: "/", label: "歌曲管理" },
-  { href: "/categories", label: "分类管理" },
-];
-
-const publicNavItem = { href: "/", label: "歌曲" };
-
 export default function DashboardLayout({
   children,
 }: {
@@ -19,7 +12,15 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const navItems = session ? adminNavItems : [publicNavItem];
+  const isSuper = session?.user?.role === "super";
+
+  const navItems = session
+    ? [
+        { href: "/", label: "歌曲管理" },
+        { href: "/categories", label: "分类管理" },
+        ...(isSuper ? [{ href: "/admins", label: "管理员" }] : []),
+      ]
+    : [{ href: "/", label: "歌曲" }];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -34,7 +35,7 @@ export default function DashboardLayout({
                 </Link>
               </div>
               <nav className="ml-3 sm:ml-6 flex space-x-1 sm:space-x-4">
-                {navItems.map((item) => (
+                {navItems.map((item, i) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -52,8 +53,8 @@ export default function DashboardLayout({
             <div className="flex items-center space-x-2 sm:space-x-4">
               {session ? (
                 <>
-                  <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">
-                    {session?.user?.name || session?.user?.username}
+                  <span className="text-xs sm:text-sm text-gray-600">
+                    {session?.user?.username}
                   </span>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}

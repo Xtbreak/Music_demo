@@ -7,8 +7,6 @@ import { useSession } from "next-auth/react";
 interface Song {
   id: string;
   title: string;
-  author: string | null;
-  tags: string | null;
   createdAt: string;
   category: { id: string; name: string } | null;
   _count?: { sheets: number };
@@ -182,12 +180,8 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="flex gap-2 mt-1 text-xs text-gray-500">
-                    {song.author && <span>{song.author}</span>}
                     {song.category?.name && (
-                      <>
-                        {song.author && <span>·</span>}
-                        <span>{song.category.name}</span>
-                      </>
+                      <span>{song.category.name}</span>
                     )}
                     {song._count?.sheets ? (
                       <>
@@ -207,9 +201,6 @@ export default function DashboardPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       歌曲标题
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      作者
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       分类
@@ -234,9 +225,6 @@ export default function DashboardPage() {
                         >
                           {song.title}
                         </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {song.author || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {song.category?.name || "-"}
