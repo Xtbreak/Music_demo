@@ -32,36 +32,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "密码", type: "password" },
       },
       async authorize(credentials) {
-        console.log("=== 开始登录验证 ===");
-        console.log("收到的凭据:", { username: credentials?.username, hasPassword: !!credentials?.password });
-
         if (!credentials?.username || !credentials?.password) {
-          console.log("❌ 缺少用户名或密码");
           return null;
         }
 
         try {
           const admin = await getAdmin(credentials.username as string);
-          console.log("查询管理员结果:", admin ? `找到用户: ${admin.username}` : "用户不存在");
 
           if (!admin) {
-            console.log("❌ 管理员不存在");
             return null;
           }
 
-          console.log("开始验证密码...");
           const isValid = await bcrypt.compare(
             credentials.password as string,
             admin.password
           );
-          console.log("密码验证结果:", isValid ? "✓ 正确" : "✗ 错误");
 
           if (!isValid) {
-            console.log("❌ 密码错误");
             return null;
           }
 
-          console.log("✓ 登录成功，返回用户信息");
           return {
             id: admin.id,
             name: admin.username,
@@ -70,7 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: admin.role,
           };
         } catch (error) {
-          console.error("❌ Authorization error:", error);
+          console.error("Authorization error:", error);
           return null;
         }
       },
