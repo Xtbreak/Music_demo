@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { auth } from "@/lib/auth";
 
@@ -35,15 +35,16 @@ export async function POST(request: NextRequest) {
     const ext = file.name.split(".").pop() || "png";
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    const uploadDir = join(process.cwd(), "public", "uploads", "sheets");
+    const uploadDir = join(process.cwd(), "uploads", "sheets");
+    await mkdir(uploadDir, { recursive: true });
     const filePath = join(uploadDir, filename);
 
     // 写入文件
     const bytes = await file.arrayBuffer();
     await writeFile(filePath, Buffer.from(bytes));
 
-    // 返回可访问的 URL 路径
-    const url = `/uploads/sheets/${filename}`;
+    // 返回可访问的 URL 路径（通过 API 路由访问）
+    const url = `/api/files/sheets/${filename}`;
 
     return NextResponse.json({ url, filename });
   } catch (error: unknown) {

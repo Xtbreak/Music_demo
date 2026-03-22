@@ -53,6 +53,7 @@ test-login.ts
 
 # uploads (user uploaded files)
 /public/uploads/
+/uploads/
 
 # claude local settings
 .claude/settings.local.json
