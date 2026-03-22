@@ -19,7 +19,7 @@ async function getAdmin(username: string) {
   const { prisma } = await import("./prisma");
   return prisma.admin.findUnique({
     where: { username },
-    select: { id: true, username: true, password: true, name: true, role: true },
+    select: { id: true, username: true, password: true, role: true },
   });
 }
 
@@ -64,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log("✓ 登录成功，返回用户信息");
           return {
             id: admin.id,
-            name: admin.name,
+            name: admin.username,
             email: null,
             username: admin.username,
             role: admin.role,

@@ -12,7 +12,7 @@ export async function GET() {
     }
 
     const admins = await prisma.admin.findMany({
-      select: { id: true, username: true, name: true, role: true, createdAt: true },
+      select: { id: true, username: true, role: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     });
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { username, password, name } = body;
+    const { username, password } = body;
 
     if (!username || !password) {
       return NextResponse.json({ error: "用户名和密码不能为空" }, { status: 400 });
@@ -48,10 +48,9 @@ export async function POST(request: NextRequest) {
       data: {
         username,
         password: hashedPassword,
-        name: name || null,
         role: "admin",
       },
-      select: { id: true, username: true, name: true, role: true, createdAt: true },
+      select: { id: true, username: true, role: true, createdAt: true },
     });
 
     return NextResponse.json(admin, { status: 201 });

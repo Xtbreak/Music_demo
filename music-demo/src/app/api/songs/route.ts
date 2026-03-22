@@ -13,14 +13,12 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("categoryId") || undefined;
 
     const where = {
-      isActive: true,
       ...(categoryId && { categoryId }),
       ...(keyword && {
         OR: [
           { title: { contains: keyword } },
           { titlePinyin: { contains: keyword.toLowerCase() } },
           { lyricsPlain: { contains: keyword } },
-          { author: { contains: keyword } },
         ],
       }),
     };
@@ -52,7 +50,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("获取歌曲列表失败:", error);
-    return NextResponse.json({ error: "获取歌曲列表失败" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: "获取歌曲列表失败", detail: msg }, { status: 500 });
   }
 }
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, lyrics, author, description, tags, categoryId } = body;
+    const { title, lyrics, categoryId } = body;
 
     if (!title) {
       return NextResponse.json({ error: "歌曲标题不能为空" }, { status: 400 });
@@ -83,9 +82,6 @@ export async function POST(request: NextRequest) {
         titlePinyin,
         lyrics: lyrics || "",
         lyricsPlain,
-        author,
-        description,
-        tags,
         categoryId: categoryId || null,
       },
       include: {

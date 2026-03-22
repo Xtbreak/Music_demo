@@ -11,22 +11,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const {
-      songId,
-      name,
-      content,
-      fileUrl,
-      keySignature,
-      capo,
-      tempo,
-      timeSignature,
-      notes,
-      sortOrder,
-    } = body;
+    const { songId, name, fileUrl, notes, sortOrder } = body;
 
-    if (!songId || (!content && !fileUrl)) {
+    if (!songId || !fileUrl) {
       return NextResponse.json(
-        { error: "请上传乐谱图片或输入乐谱内容" },
+        { error: "请上传乐谱图片" },
         { status: 400 }
       );
     }
@@ -35,17 +24,9 @@ export async function POST(request: NextRequest) {
       data: {
         songId,
         name,
-        content: content || null,
         fileUrl,
-        keySignature,
-        capo,
-        tempo,
-        timeSignature,
         notes,
         sortOrder: sortOrder || 0,
-      },
-      include: {
-        instrument: true,
       },
     });
 

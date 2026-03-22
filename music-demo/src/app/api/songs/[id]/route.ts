@@ -15,9 +15,6 @@ export async function GET(
       include: {
         category: true,
         sheets: {
-          include: {
-            instrument: true,
-          },
           orderBy: { sortOrder: "asc" },
         },
       },
@@ -47,7 +44,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { title, lyrics, author, description, tags, categoryId, isActive } = body;
+    const { title, lyrics, categoryId } = body;
 
     // 生成拼音
     const titlePinyin = title
@@ -64,11 +61,7 @@ export async function PUT(
         titlePinyin,
         lyrics,
         lyricsPlain,
-        author,
-        description,
-        tags,
         categoryId: categoryId || null,
-        isActive,
       },
       include: {
         category: true,
@@ -84,7 +77,7 @@ export async function PUT(
   }
 }
 
-// 删除歌曲（软删除）
+// 删除歌曲
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -97,10 +90,14 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // 软删除
-    await prisma.song.update({
+    // 先删除关联的曲谱
+    await prisma.sheet.deleteMany({
+      where: { songId: id },
+    });
+
+    // 再删除歌曲
+    await prisma.song.delete({
       where: { id },
-      data: { isActive: false },
     });
 
     return NextResponse.json({ success: true });

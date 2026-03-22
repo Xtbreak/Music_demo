@@ -15,33 +15,15 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const {
-      name,
-      content,
-      fileUrl,
-      keySignature,
-      capo,
-      tempo,
-      timeSignature,
-      notes,
-      sortOrder,
-    } = body;
+    const { name, fileUrl, notes, sortOrder } = body;
 
     const sheet = await prisma.sheet.update({
       where: { id },
       data: {
         name,
-        content: content || null,
         fileUrl,
-        keySignature,
-        capo,
-        tempo,
-        timeSignature,
         notes,
         sortOrder,
-      },
-      include: {
-        instrument: true,
       },
     });
 

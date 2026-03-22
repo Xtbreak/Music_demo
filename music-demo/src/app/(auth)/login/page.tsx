@@ -2,8 +2,10 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,12 +19,20 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      await signIn("credentials", {
+      const result = await signIn("credentials", {
         username,
         password,
-        redirect: true,
-        callbackUrl: "/",
+        redirect: false,
       });
+
+      if (result?.error) {
+        setError("用户名或密码错误");
+        setLoading(false);
+      } else {
+        // 登录成功，跳转到首页
+        router.push("/");
+        router.refresh();
+      }
     } catch (err) {
       console.error("Login error:", err);
       setError("登录失败");

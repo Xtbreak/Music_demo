@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     // 1. 查找管理员
     const admin = await prisma.admin.findUnique({
       where: { username },
-      select: { id: true, username: true, password: true, name: true },
+      select: { id: true, username: true, password: true },
     });
 
     if (!admin) {
@@ -33,7 +33,6 @@ export async function POST(request: Request) {
       admin: {
         id: admin.id,
         username: admin.username,
-        name: admin.name,
       },
     });
   } catch (error) {

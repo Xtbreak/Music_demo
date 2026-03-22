@@ -157,7 +157,8 @@ export default function NewSongPage() {
         });
       }
 
-      router.push(`/songs/${song.id}`);
+      // 保存成功，返回上一页（保持之前的状态）
+      router.back();
     } catch (error) {
       console.error("创建歌曲失败:", error);
       alert("创建失败");

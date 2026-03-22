@@ -210,7 +210,8 @@ export default function EditSongPage() {
         }
       }
 
-      router.push(`/songs/${params.id}`);
+      // 保存成功，返回上一页（保持之前的状态）
+      router.back();
     } catch (error) {
       console.error("保存歌曲失败:", error);
       alert("保存失败");
